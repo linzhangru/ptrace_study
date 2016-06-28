@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <sys/user.h>   /* For constants ORIG_RAX etc */
 #include <sys/reg.h>
+#include <sys/syscall.h>  /* For SYS_write etc */ 
 
 int main()
 {
@@ -19,6 +20,7 @@ int main()
 	ptrace(PTRACE_TRACEME, 0, NULL, NULL);
 	execl("/bin/ls", "ls", NULL);
     } else {
+#if 0
 	wait(NULL);
 	//long original_rax = ptrace(PTRACE_PEEKUSER, child, 8 * ORIG_RAX, NULL);
 	long original_rax = ptrace(PTRACE_PEEKUSER, child, &user_space->regs.orig_rax, NULL);
@@ -28,10 +30,40 @@ int main()
 	//printf("The child made a system call %lld\n", regs.orig_rax);
 	
 	ptrace(PTRACE_CONT, child, NULL, NULL);
-    }
+#else
+	while(1) {
+	    int status;
+	    static int insyscall = 0;
+	    long orig_eax, eax;
+	    long params[3];
+	     
+	    wait(&status);
+	    if(WIFEXITED(status))
+		break;
 
-    free(user_space);
-    
+	    orig_eax = ptrace(PTRACE_PEEKUSER, child, 8 * ORIG_RAX, NULL);
+
+	    if(orig_eax == SYS_write) {
+		if(insyscall == 0) {
+		    /* Syscall entry */
+		    insyscall = 1;
+
+		    params[0] = ptrace(PTRACE_PEEKUSER, child, 8 * RBX, NULL);
+		    params[1] = ptrace(PTRACE_PEEKUSER, child, 8 * RCX, NULL);
+		    params[2] = ptrace(PTRACE_PEEKUSER, child, 8 * RDX, NULL);
+
+		    printf("Write called with %ld, %ld, %ld\n", params[0], params[1], params[2]);
+		} else {
+		    /* Syscall exit */
+		    eax = ptrace(PTRACE_PEEKUSER, child, 8 * RAX, NULL);
+		    printf("Write returned with %ld\n", eax);
+		    insyscall = 0;
+		}
+	    }
+	    ptrace(PTRACE_SYSCALL, child, NULL, NULL);
+	}
+#endif	
+    }
     return 0;
 }
   
