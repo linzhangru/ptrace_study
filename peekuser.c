@@ -48,11 +48,15 @@ int main()
 		    /* Syscall entry */
 		    insyscall = 1;
 
-		    params[0] = ptrace(PTRACE_PEEKUSER, child, 8 * RBX, NULL);
-		    params[1] = ptrace(PTRACE_PEEKUSER, child, 8 * RCX, NULL);
-		    params[2] = ptrace(PTRACE_PEEKUSER, child, 8 * RDX, NULL);
-
-		    printf("Write called with %ld, %ld, %ld\n", params[0], params[1], params[2]);
+		    //params[0] = ptrace(PTRACE_PEEKUSER, child, 8 * RBX, NULL);
+		    //params[1] = ptrace(PTRACE_PEEKUSER, child, 8 * RCX, NULL);
+		    //params[2] = ptrace(PTRACE_PEEKUSER, child, 8 * RDX, NULL);
+		    //printf("Write called with %ld, %ld, %ld\n", params[0], params[1], params[2]);
+		    
+		    ptrace(PTRACE_GETREGS, child, NULL, &regs);
+		    printf("Write called with %lld, %lld, %lld\n", regs.rbx, regs.rcx, regs.rdx);
+		     
+		    
 		} else {
 		    /* Syscall exit */
 		    eax = ptrace(PTRACE_PEEKUSER, child, 8 * RAX, NULL);
